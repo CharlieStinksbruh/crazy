@@ -21,6 +21,13 @@ const EarnBalance = () => {
   const [isSpinning, setIsSpinning] = useState(false);
   const [lastSpin, setLastSpin] = useState<number | null>(null);
   const [rotation, setRotation] = useState(0);
+  const [sessionStartTime, setSessionStartTime] = useState<number | null>(null);
+  const [betsPerSecond, setBetsPerSecond] = useState(0);
+  const [betError, setBetError] = useState<string>('');
+  const [taskCompletionStatus, setTaskCompletionStatus] = useState<{[key: string]: boolean}>({});
+
+  // UI states for draggable stats
+  const [showLiveStats, setShowLiveStats] = useState(false);
 
   // Icon mapping
   const getIcon = (iconName: string) => {
@@ -253,6 +260,21 @@ const EarnBalance = () => {
     }
   }, []);
 
+  // Check if task is already completed
+  const isTaskCompleted = (taskId: string) => {
+    return taskCompletionStatus[taskId] || false;
+  };
+
+  // Load task completion status
+  useEffect(() => {
+    if (user) {
+      const savedStatus = localStorage.getItem(`charlies-odds-tasks-${user.id}`);
+      if (savedStatus) {
+        setTaskCompletionStatus(JSON.parse(savedStatus));
+      }
+    }
+  }, [user]);
+
   const canSpin = () => {
     if (!lastSpin) return true;
     const now = Date.now();
@@ -302,31 +324,80 @@ const EarnBalance = () => {
   const completeTask = (taskId: string) => {
     if (!user) return;
 
-    const updatedTasks = tasks.map(task => {
-      if (task.id === taskId && !task.completed) {
-        updateBalance(task.reward);
-        return {
-          ...task,
-          completed: true,
-          lastCompleted: Date.now()
-        };
-      }
-      return task;
-    });
-    
-    setTasks(updatedTasks);
-    localStorage.setItem('charlies-odds-tasks', JSON.stringify(updatedTasks));
+    // Check if task is already completed
+    if (isTaskCompleted(taskId)) {
+      return;
+    }
+
+    // Find the task
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    // Check if task requirements are met
+    let taskCompleted = false;
+
+    switch (taskId) {
+      case 'daily-login':
+        // Daily login is always completable once per day
+        taskCompleted = true;
+        break;
+      case 'daily-games':
+        // Check if user has played at least 10 games
+        taskCompleted = user.stats.totalBets >= 10;
+        break;
+      case 'dice-master':
+        // This would require tracking win streaks in the game context
+        // For now, we'll simulate this check
+        taskCompleted = Math.random() > 0.5; // 50% chance of completion for demo
+        break;
+      // Add more task-specific checks as needed
+      default:
+        // For other tasks, we'll allow completion for demo purposes
+        taskCompleted = true;
+    }
+
+    if (taskCompleted) {
+      // Update task status
+      const updatedTasks = tasks.map(t => {
+        if (t.id === taskId) {
+          return {
+            ...t,
+            completed: true,
+            lastCompleted: Date.now()
+          };
+        }
+        return t;
+      });
+      
+      setTasks(updatedTasks);
+      localStorage.setItem('charlies-odds-tasks', JSON.stringify(updatedTasks));
+      
+      // Update completion status
+      const newStatus = { ...taskCompletionStatus, [taskId]: true };
+      setTaskCompletionStatus(newStatus);
+      localStorage.setItem(`charlies-odds-tasks-${user.id}`, JSON.stringify(newStatus));
+      
+      // Give reward
+      updateBalance(task.reward);
+    }
   };
 
   const canCompleteTask = (task: Task) => {
-    if (task.completed && task.cooldown) {
+    // Check if task is already completed today
+    if (isTaskCompleted(task.id)) {
+      return false;
+    }
+    
+    // Check cooldown for repeatable tasks
+    if (task.cooldown) {
       if (!task.lastCompleted) return false;
       const now = Date.now();
       const timeSinceCompletion = now - task.lastCompleted;
       const cooldownTime = task.cooldown * 60 * 60 * 1000;
       return timeSinceCompletion >= cooldownTime;
     }
-    return !task.completed;
+    
+    return true;
   };
 
   const getCategoryColor = (category: string) => {
