@@ -655,13 +655,8 @@ const Blackjack = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Recent Bets and other content */}
-        <div className="lg:col-span-2">
-          <RecentBets bets={bets.filter(bet => bet.game === 'Blackjack')} formatCurrency={formatCurrency} maxBets={5} />
-        </div>
-        
         {/* Betting Panel */}
-        <div className="space-y-6">
+        <div className="lg:col-span-1 space-y-6">
           <div className="bg-gray-800 rounded-lg p-6">
             <h2 className="text-xl font-bold text-white mb-4">Place Your Bet</h2>
             
@@ -1048,6 +1043,16 @@ const Blackjack = () => {
             </div>
           </div>
         </div>
+        
+        {/* Game content area */}
+        <div className="lg:col-span-2">
+          {/* This space can be used for other game content if needed */}
+        </div>
+      </div>
+      
+      {/* Recent Bets moved to bottom */}
+      <div className="mt-8">
+        <RecentBets bets={bets.filter(bet => bet.game === 'Blackjack')} formatCurrency={formatCurrency} maxBets={5} />
       </div>
       
       {/* Draggable Live Stats */}

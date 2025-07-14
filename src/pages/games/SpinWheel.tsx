@@ -511,6 +511,11 @@ const SpinWheel = () => {
         </div>
       </div>
       
+      {/* Recent Bets moved to bottom */}
+      <div className="mt-8">
+        <RecentBets bets={bets.filter(bet => bet.game === 'Spin Wheel')} formatCurrency={formatCurrency} maxBets={5} />
+      </div>
+      
       {/* Draggable Live Stats */}
       <DraggableLiveStats
         sessionStats={sessionStats}
