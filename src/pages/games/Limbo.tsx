@@ -153,7 +153,12 @@ const Limbo = () => {
         const winAmount = won ? betAmount * targetMultiplier : 0;
         const profit = winAmount - betAmount;
         
-        updateBalance(profit);
+        // Always update balance - deduct bet amount and add winnings if any
+        updateBalance(-betAmount);
+        if (won) {
+          updateBalance(winAmount);
+        }
+        
         updateStats(betAmount, winAmount);
         
         // Update profit tracking

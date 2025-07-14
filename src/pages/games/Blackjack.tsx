@@ -240,6 +240,12 @@ const Blackjack = () => {
     
     const profit = winAmount - betAmount;
     
+    // Always update balance - deduct bet amount and add winnings if any
+    updateBalance(-betAmount);
+    if (winAmount > 0) {
+      updateBalance(winAmount);
+    }
+    
     // Update profit tracking
     const newProfit = sessionProfit + profit;
     setSessionProfit(newProfit);
@@ -266,7 +272,6 @@ const Blackjack = () => {
       return newStats;
     });
     
-    updateBalance(profit);
     updateStats(betAmount, winAmount);
     
     addBet({

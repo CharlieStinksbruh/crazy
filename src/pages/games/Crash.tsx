@@ -148,6 +148,12 @@ const Crash = () => {
     const winAmount = won ? betAmount * currentMultiplier : 0;
     const profit = winAmount - betAmount;
     
+    // Always update balance - deduct bet amount and add winnings if any
+    updateBalance(-betAmount);
+    if (won) {
+      updateBalance(winAmount);
+    }
+    
     // Update profit tracking
     const newProfit = sessionProfit + profit;
     setSessionProfit(newProfit);
@@ -174,7 +180,6 @@ const Crash = () => {
       return newStats;
     });
     
-    updateBalance(profit);
     updateStats(betAmount, winAmount);
     
     addBet({

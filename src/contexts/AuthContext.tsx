@@ -208,7 +208,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   
   const getNextLevelRequirement = (): number => {
     if (!user) return 100;
-    return user.level * 100; // Each level requires level * 100 XP
+    return (user.level || 1) * 100; // Each level requires level * 100 XP
   };
 
   const getLevelRewards = (level: number) => {
@@ -230,19 +230,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const updateBalance = (amount: number) => {
     if (!user) return;
 
-    const newBalance = user.balance + amount;
-    const updatedUser = { ...user, balance: newBalance };
-    setUser(updatedUser);
+    try {
+      const newBalance = user.balance + amount;
+      const updatedUser = { ...user, balance: newBalance };
+      setUser(updatedUser);
 
-    // Update in localStorage
-    const users = JSON.parse(localStorage.getItem('charlies-odds-users') || '[]');
-    const userIndex = users.findIndex((u: any) => u.id === user.id);
-    if (userIndex !== -1) {
-      users[userIndex] = { ...users[userIndex], balance: newBalance };
-      localStorage.setItem('charlies-odds-users', JSON.stringify(users));
+      // Update in localStorage
+      const users = JSON.parse(localStorage.getItem('charlies-odds-users') || '[]');
+      const userIndex = users.findIndex((u: any) => u.id === user.id);
+      if (userIndex !== -1) {
+        users[userIndex] = { ...users[userIndex], balance: newBalance };
+        localStorage.setItem('charlies-odds-users', JSON.stringify(users));
+      }
+
+      console.log(`Balance updated: ${amount >= 0 ? '+' : ''}${amount.toFixed(2)} -> ${formatCurrency(newBalance)}`);
+    } catch (error) {
+      console.error('Error updating balance:', error);
     }
-
-    console.log(`Balance updated: ${amount >= 0 ? '+' : ''}${amount.toFixed(2)} -> ${formatCurrency(newBalance)}`);
   };
 
   const addExperience = (amount: number) => {
@@ -272,26 +276,31 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const claimDailyBonus = (): number => {
     if (!user) return 0;
 
-    const today = new Date().toDateString();
-    if (user.lastDailyBonus === today) return 0;
+    try {
+      const today = new Date().toDateString();
+      if (user.lastDailyBonus === today) return 0;
 
-    const levelRewards = getLevelRewards(user.level);
-    const bonusAmount = levelRewards.dailyBonus;
-    
-    updateBalance(bonusAmount);
-    
-    const updatedUser = { ...user, lastDailyBonus: today };
-    setUser(updatedUser);
+      const levelRewards = getLevelRewards(user.level || 1);
+      const bonusAmount = levelRewards.dailyBonus;
+      
+      updateBalance(bonusAmount);
+      
+      const updatedUser = { ...user, lastDailyBonus: today };
+      setUser(updatedUser);
 
-    // Update in localStorage
-    const users = JSON.parse(localStorage.getItem('charlies-odds-users') || '[]');
-    const userIndex = users.findIndex((u: any) => u.id === user.id);
-    if (userIndex !== -1) {
-      users[userIndex] = { ...users[userIndex], lastDailyBonus: today };
-      localStorage.setItem('charlies-odds-users', JSON.stringify(users));
+      // Update in localStorage
+      const users = JSON.parse(localStorage.getItem('charlies-odds-users') || '[]');
+      const userIndex = users.findIndex((u: any) => u.id === user.id);
+      if (userIndex !== -1) {
+        users[userIndex] = { ...users[userIndex], lastDailyBonus: today };
+        localStorage.setItem('charlies-odds-users', JSON.stringify(users));
+      }
+
+      return bonusAmount;
+    } catch (error) {
+      console.error('Error claiming daily bonus:', error);
+      return 0;
     }
-
-    return bonusAmount;
   };
 
   const updateStats = (betAmount: number, winAmount: number) => {

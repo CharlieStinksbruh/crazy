@@ -148,10 +148,16 @@ const Dice = () => {
     setIsWin(won);
     setGameResult(won ? 'win' : 'lose');
     
-    // Calculate payout
+    // Calculate payout and update balance
     const multiplier = 100 / winChance;
     const winAmount = won ? betAmount * multiplier : 0;
     const profit = winAmount - betAmount;
+    
+    // Always update balance - deduct bet amount and add winnings if any
+    updateBalance(-betAmount);
+    if (won) {
+      updateBalance(winAmount);
+    }
     
     // Update profit tracking FIRST
     const newProfit = sessionProfit + profit;
@@ -180,7 +186,6 @@ const Dice = () => {
     });
     
     // Update balance and stats in auth context
-    updateBalance(profit);
     updateStats(betAmount, winAmount);
     
     // Add bet to game context
@@ -483,14 +488,7 @@ const Dice = () => {
             {/* Fixed height container for result to prevent jumping */}
             <div className="h-12 flex items-center justify-center">
               {gameResult && (
-                <div className="text-center">
-                  <div className={`text-2xl font-bold ${isWin ? 'text-green-400' : 'text-red-400'}`}>
-                    {isWin ? 'WIN!' : 'LOSE!'}
-                  </div>
-                  <div className="text-base text-gray-300">
-                    {isWin ? `+${formatCurrency(betAmount * multiplier - betAmount)}` : `-${formatCurrency(betAmount)}`}
-                  </div>
-                </div>
+                <div className="text-center"></div>
               )}
             </div>
           </div>
