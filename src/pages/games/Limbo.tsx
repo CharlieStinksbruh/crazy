@@ -9,17 +9,15 @@ import RecentBets from '../../components/RecentBets';
 import SettingsManager from '../../components/SettingsManager';
 
 const Limbo = () => {
-  const { user, updateBalance, updateStats, formatCurrency } = useAuth();
-  const { addBet, bets } = useGame();
+  const { user, updateBalance, formatCurrency } = useAuth();
+  const { addBet, generateSeededRandom, saveGameSettings, loadGameSettings, bets, setSeed, seed } = useGame();
   const { isEnabled, isLoading, validateBetAmount } = useGameAccess('limbo');
   
   const [betAmount, setBetAmount] = useState(10);
-  const [targetMultiplier, setTargetMultiplier] = useState(2);
+  const [originalBetAmount, setOriginalBetAmount] = useState(10);
+  const [targetMultiplier, setTargetMultiplier] = useState(2.0);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [currentMultiplier, setCurrentMultiplier] = useState(1);
-  const [result, setResult] = useState(0);
-  const [isWin, setIsWin] = useState(false);
-  const [gameResult, setGameResult] = useState<'win' | 'lose' | null>(null);
+  const [gameResult, setGameResult] = useState<{ multiplier: number; won: boolean; profit: number } | null>(null);
   
   // Auto-betting states
   const [isAutoMode, setIsAutoMode] = useState(false);
@@ -55,11 +53,13 @@ const Limbo = () => {
   // UI states
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [instantBet, setInstantBet] = useState(false);
+  const [betSpeed, setBetSpeed] = useState(1000);
   
   // UI states for draggable stats
   const [showLiveStats, setShowLiveStats] = useState(false);
   const [sessionStartTime, setSessionStartTime] = useState<number | null>(null);
   const [betsPerSecond, setBetsPerSecond] = useState(0);
+  const [newSeed, setNewSeed] = useState(seed);
   const [betError, setBetError] = useState<string>('');
 
   // Enhanced statistics
@@ -73,6 +73,27 @@ const Limbo = () => {
     isWinStreak: true
   });
 
+  // Load saved settings on component mount
+  useEffect(() => {
+    const savedSettings = loadGameSettings('limbo');
+    if (savedSettings.betAmount) setBetAmount(savedSettings.betAmount);
+    if (savedSettings.targetMultiplier) setTargetMultiplier(savedSettings.targetMultiplier);
+    if (savedSettings.strategy) setStrategy(savedSettings.strategy);
+    if (savedSettings.onWin) setOnWin(savedSettings.onWin);
+    if (savedSettings.onLoss) setOnLoss(savedSettings.onLoss);
+    if (savedSettings.increaseBy) setIncreaseBy(savedSettings.increaseBy);
+    if (savedSettings.decreaseBy) setDecreaseBy(savedSettings.decreaseBy);
+    if (savedSettings.maxAutoBets) setMaxAutoBets(savedSettings.maxAutoBets);
+    if (savedSettings.infiniteBet !== undefined) setInfiniteBet(savedSettings.infiniteBet);
+    if (savedSettings.instantBet !== undefined) setInstantBet(savedSettings.instantBet);
+    if (savedSettings.betSpeed) setBetSpeed(savedSettings.betSpeed);
+    if (savedSettings.stopOnProfit !== undefined) setStopOnProfit(savedSettings.stopOnProfit);
+    if (savedSettings.stopProfitAmount) setStopProfitAmount(savedSettings.stopProfitAmount);
+    if (savedSettings.stopOnLoss !== undefined) setStopOnLoss(savedSettings.stopOnLoss);
+    if (savedSettings.stopLossAmount) setStopLossAmount(savedSettings.stopLossAmount);
+    if (savedSettings.martingaleMultiplier) setMartingaleMultiplier(savedSettings.martingaleMultiplier);
+  }, []);
+
   // Calculate bets per second
   useEffect(() => {
     if (sessionStartTime && sessionStats.totalBets > 0) {
@@ -82,18 +103,14 @@ const Limbo = () => {
   }, [sessionStats.totalBets, sessionStartTime]);
 
   const roundBetAmount = (amount: number) => {
-    // Round to 2 decimal places for amounts under $1
     if (amount < 1) return Math.round(amount * 100) / 100;
-    // Round to 1 decimal place for amounts under $10
     if (amount < 10) return Math.round(amount * 10) / 10;
-    // Round to nearest whole number for larger amounts
     return Math.round(amount);
   };
 
-  const handlePlay = () => {
+  const playLimbo = () => {
     if (!user || betAmount > user.balance) return;
 
-    // Validate bet amount against admin settings
     const validation = validateBetAmount(betAmount);
     if (!validation.isValid) {
       setBetError(validation.message || 'Invalid bet amount');
@@ -103,103 +120,72 @@ const Limbo = () => {
 
     setBetError('');
     setIsPlaying(true);
-    setCurrentMultiplier(1);
     setGameResult(null);
     
-    // Generate truly random result using crypto.getRandomValues for better randomness
+    // Generate random multiplier using crypto for better randomness
     const randomArray = new Uint32Array(1);
     crypto.getRandomValues(randomArray);
     const randomNum = randomArray[0] / (0xffffffff + 1);
     
-    // More accurate limbo distribution - most results between 1x-10x, rare high multipliers
-    let finalMultiplier;
-    if (randomNum < 0.5) {
-      // 50% chance: 1.00x - 2.00x
-      finalMultiplier = 1 + randomNum * 2;
-    } else if (randomNum < 0.8) {
-      // 30% chance: 2.00x - 5.00x
-      finalMultiplier = 2 + (randomNum - 0.5) * 10;
-    } else if (randomNum < 0.95) {
-      // 15% chance: 5.00x - 20.00x
-      finalMultiplier = 5 + (randomNum - 0.8) * 100;
-    } else {
-      // 5% chance: 20.00x - 1000.00x
-      finalMultiplier = 20 + (randomNum - 0.95) * 19600;
-    }
+    // Exponential distribution for realistic limbo multipliers
+    const finalMultiplier = Math.max(1.0, Math.min(Math.pow(randomNum, -0.5), 1000));
     
-    finalMultiplier = Math.max(1.01, Math.min(1000, finalMultiplier));
+    const won = finalMultiplier >= targetMultiplier;
+    const winAmount = won ? betAmount * targetMultiplier : 0;
+    const profit = winAmount - betAmount;
     
-    setResult(finalMultiplier);
-    
-    // Animate multiplier
-    const duration = instantBet ? 100 : 2000;
-    const startTime = Date.now();
-    
-    const animateMultiplier = () => {
-      const elapsed = Date.now() - startTime;
-      const progress = Math.min(elapsed / duration, 1);
+    setTimeout(() => {
+      setGameResult({
+        multiplier: finalMultiplier,
+        won,
+        profit
+      });
       
-      const current = 1 + (finalMultiplier - 1) * progress;
-      setCurrentMultiplier(current);
+      // Update profit tracking FIRST
+      const newProfit = sessionProfit + profit;
+      setSessionProfit(newProfit);
+      setProfitHistory(prev => [...prev, {value: newProfit, bet: sessionStats.totalBets + 1, timestamp: Date.now()}]);
       
-      if (progress < 1) {
-        requestAnimationFrame(animateMultiplier);
-      } else {
-        // Game complete
-        const won = finalMultiplier >= targetMultiplier;
-        setIsWin(won);
-        setGameResult(won ? 'win' : 'lose');
+      // Update session statistics
+      setSessionStats(prev => {
+        const newStats = {
+          totalBets: prev.totalBets + 1,
+          wins: prev.wins + (won ? 1 : 0),
+          losses: prev.losses + (won ? 0 : 1),
+          currentStreak: prev.isWinStreak === won ? prev.currentStreak + 1 : 1,
+          longestWinStreak: prev.longestWinStreak,
+          longestLossStreak: prev.longestLossStreak,
+          isWinStreak: won
+        };
         
-        const winAmount = won ? betAmount * targetMultiplier : 0;
-        const profit = winAmount - betAmount;
-        
-        updateBalance(profit);
-        updateStats(betAmount, winAmount);
-        
-        // Update profit tracking
-        const newProfit = sessionProfit + profit;
-        setSessionProfit(newProfit);
-        setProfitHistory(prev => [...prev, {value: newProfit, bet: sessionStats.totalBets + 1, timestamp: Date.now()}]);
-        
-        // Update session statistics
-        setSessionStats(prev => {
-          const newStats = {
-            totalBets: prev.totalBets + 1,
-            wins: prev.wins + (won ? 1 : 0),
-            losses: prev.losses + (won ? 0 : 1),
-            currentStreak: prev.isWinStreak === won ? prev.currentStreak + 1 : 1,
-            longestWinStreak: prev.longestWinStreak,
-            longestLossStreak: prev.longestLossStreak,
-            isWinStreak: won
-          };
-          
-          if (won) {
-            newStats.longestWinStreak = Math.max(prev.longestWinStreak, newStats.currentStreak);
-          } else {
-            newStats.longestLossStreak = Math.max(prev.longestLossStreak, newStats.currentStreak);
-          }
-          
-          return newStats;
-        });
-        
-        addBet({
-          game: 'Limbo',
-          betAmount,
-          winAmount,
-          multiplier: won ? targetMultiplier : 0,
-          result: { target: targetMultiplier, actual: finalMultiplier, won },
-        });
-        
-        setIsPlaying(false);
-        
-        // Handle auto-betting
-        if (isAutoMode && autoBetRunning) {
-          handleAutoBetResult(won, profit);
+        if (won) {
+          newStats.longestWinStreak = Math.max(prev.longestWinStreak, newStats.currentStreak);
+        } else {
+          newStats.longestLossStreak = Math.max(prev.longestLossStreak, newStats.currentStreak);
         }
+        
+        return newStats;
+      });
+      
+      // Update balance using auth context
+      updateBalance(profit);
+      
+      // Add bet to game context
+      addBet({
+        game: 'Limbo',
+        betAmount,
+        winAmount,
+        multiplier: won ? targetMultiplier : 0,
+        result: { target: targetMultiplier, actual: finalMultiplier, won },
+      });
+      
+      setIsPlaying(false);
+      
+      // Handle auto-betting
+      if (isAutoMode && autoBetRunning) {
+        handleAutoBetResult(won, profit);
       }
-    };
-    
-    animateMultiplier();
+    }, instantBet ? betSpeed : 2000);
   };
 
   const handleAutoBetResult = (won: boolean, profit: number) => {
@@ -281,7 +267,6 @@ const Limbo = () => {
     
     // Check if user has enough balance for the new bet amount
     if (user && finalBetAmount > user.balance) {
-      // If not enough balance, stop auto-betting
       stopAutoPlay();
       return;
     }
@@ -299,6 +284,7 @@ const Limbo = () => {
     setAutoBetRunning(true);
     setAutoBetCount(infiniteBet ? Infinity : maxAutoBets);
     setBaseBet(betAmount);
+    setOriginalBetAmount(betAmount);
     if (!sessionStartTime) {
       setSessionStartTime(Date.now());
     }
@@ -309,8 +295,24 @@ const Limbo = () => {
     setIsAutoMode(false);
     setAutoBetRunning(false);
     setAutoBetCount(0);
-    setBetAmount(originalBetAmount || baseBet);
+    setBetAmount(originalBetAmount);
     setStopOnNextWin(false);
+  };
+
+  const resetStats = () => {
+    setSessionProfit(0);
+    setProfitHistory([{value: 0, bet: 0, timestamp: Date.now()}]);
+    setSessionStats({
+      totalBets: 0,
+      wins: 0,
+      losses: 0,
+      currentStreak: 0,
+      longestWinStreak: 0,
+      longestLossStreak: 0,
+      isWinStreak: true
+    });
+    setSessionStartTime(Date.now());
+    setBetsPerSecond(0);
   };
 
   const saveSettings = () => {
@@ -325,6 +327,7 @@ const Limbo = () => {
       maxAutoBets,
       infiniteBet,
       instantBet,
+      betSpeed,
       stopOnProfit,
       stopProfitAmount,
       stopOnLoss,
@@ -345,6 +348,7 @@ const Limbo = () => {
     if (settings.maxAutoBets) setMaxAutoBets(settings.maxAutoBets);
     if (settings.infiniteBet !== undefined) setInfiniteBet(settings.infiniteBet);
     if (settings.instantBet !== undefined) setInstantBet(settings.instantBet);
+    if (settings.betSpeed) setBetSpeed(settings.betSpeed);
     if (settings.stopOnProfit !== undefined) setStopOnProfit(settings.stopOnProfit);
     if (settings.stopProfitAmount) setStopProfitAmount(settings.stopProfitAmount);
     if (settings.stopOnLoss !== undefined) setStopOnLoss(settings.stopOnLoss);
@@ -352,93 +356,19 @@ const Limbo = () => {
     if (settings.martingaleMultiplier) setMartingaleMultiplier(settings.martingaleMultiplier);
   };
 
-  const resetProfitGraph = () => {
-    setSessionProfit(0);
-    setProfitHistory([{value: 0, bet: 0, timestamp: Date.now()}]);
-    setSessionStats({
-      totalBets: 0,
-      wins: 0,
-      losses: 0,
-      currentStreak: 0,
-      longestWinStreak: 0,
-      longestLossStreak: 0,
-      isWinStreak: true
-    });
-    setSessionStartTime(Date.now());
-    setBetsPerSecond(0);
+  const handleSeedUpdate = () => {
+    setSeed(newSeed);
   };
 
-  // Enhanced profit graph component
-  const ProfitGraph = () => {
-    const values = profitHistory.map(p => p.value);
-    const maxProfit = Math.max(...values, 10);
-    const minProfit = Math.min(...values, -10);
-    const range = maxProfit - minProfit || 20;
-    const width = 100;
-    const height = 100;
-    
-    return (
-      <div className="relative h-40 bg-gray-900 rounded-lg overflow-hidden border border-gray-700">
-        <svg className="w-full h-full" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
-          <defs>
-            <pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse">
-              <path d="M 10 0 L 0 0 0 10" fill="none" stroke="#374151" strokeWidth="0.5" opacity="0.3"/>
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#grid)" />
-          
-          <line 
-            x1="0" 
-            y1={height - ((0 - minProfit) / range) * height} 
-            x2={width} 
-            y2={height - ((0 - minProfit) / range) * height}
-            stroke="#6b7280" 
-            strokeWidth="1" 
-            strokeDasharray="2,2"
-            opacity="0.7"
-          />
-          
-          <polyline
-            fill="none"
-            stroke={sessionProfit >= 0 ? "#10b981" : "#ef4444"}
-            strokeWidth="1.5"
-            points={profitHistory.map((point, index) => 
-              `${(index / Math.max(profitHistory.length - 1, 1)) * width},${height - ((point.value - minProfit) / range) * height}`
-            ).join(' ')}
-          />
-          
-          {profitHistory.length > 1 && (
-            <circle
-              cx={(profitHistory.length - 1) / Math.max(profitHistory.length - 1, 1) * width}
-              cy={height - ((sessionProfit - minProfit) / range) * height}
-              r="1.5"
-              fill={sessionProfit >= 0 ? "#10b981" : "#ef4444"}
-            />
-          )}
-        </svg>
-        
-        <div className="absolute top-2 left-2 text-xs font-semibold bg-gray-800 px-2 py-1 rounded">
-          <span className={sessionProfit >= 0 ? 'text-green-400' : 'text-red-400'}>
-            ${sessionProfit.toFixed(2)}
-          </span>
-        </div>
-        <div className="absolute top-2 right-2 text-xs text-gray-400 bg-gray-800 px-2 py-1 rounded">
-          Max: ${maxProfit.toFixed(2)}
-        </div>
-        <div className="absolute bottom-2 left-2 text-xs text-gray-400 bg-gray-800 px-2 py-1 rounded">
-          Min: ${minProfit.toFixed(2)}
-        </div>
-        <div className="absolute bottom-2 right-2 text-xs text-gray-400 bg-gray-800 px-2 py-1 rounded">
-          {profitHistory.length - 1} bets
-        </div>
-      </div>
-    );
+  const generateNewSeed = () => {
+    const newRandomSeed = Math.random().toString(36).substring(2, 15);
+    setNewSeed(newRandomSeed);
+    setSeed(newRandomSeed);
   };
 
   useEffect(() => {
     if (isAutoMode && autoBetRunning && (autoBetCount > 0 || infiniteBet) && !isPlaying) {
       const timer = setTimeout(() => {
-        // Validate bet amount before auto-betting
         const validation = validateBetAmount(betAmount);
         if (!validation.isValid) {
           stopAutoPlay();
@@ -446,11 +376,11 @@ const Limbo = () => {
           setTimeout(() => setBetError(''), 3000);
           return;
         }
-        handlePlay();
-      }, 500);
+        playLimbo();
+      }, betSpeed);
       return () => clearTimeout(timer);
     }
-  }, [isAutoMode, autoBetRunning, autoBetCount, isPlaying]);
+  }, [isAutoMode, autoBetRunning, autoBetCount, isPlaying, betSpeed]);
 
   if (isLoading) {
     return (
@@ -466,82 +396,82 @@ const Limbo = () => {
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Game Panel */}
-        <div className="lg:col-span-2">
-          <div className="bg-gray-800 rounded-lg p-6 mb-6">
-            <div className="flex items-center mb-6">
-              <TrendingUp className="w-8 h-8 text-green-400 mr-3" />
-              <h1 className="text-2xl font-bold text-white">Limbo</h1>
+      {/* Game Panel - Now at the top */}
+      <div className="bg-gray-800 rounded-lg p-6 mb-8">
+        <div className="flex items-center mb-6">
+          <TrendingUp className="w-8 h-8 text-green-400 mr-3" />
+          <h1 className="text-2xl font-bold text-white">Limbo</h1>
+        </div>
+        
+        {/* Limbo Display */}
+        <div className="bg-gray-900 rounded-lg p-8 mb-6">
+          <div className="text-center mb-6">
+            <div className="text-2xl font-bold text-white mb-2">
+              Target: {targetMultiplier.toFixed(2)}x
             </div>
-            
-            {/* Multiplier Display */}
-            <div className="bg-gray-900 rounded-lg p-8 mb-6">
-              <div className="text-center">
-                <div className="text-8xl font-bold text-white mb-4">
-                  {currentMultiplier.toFixed(2)}x
-                </div>
-                <div className="text-xl text-gray-400 mb-6">
-                  Target: {targetMultiplier.toFixed(2)}x
-                </div>
-                
-                {/* Fixed height container for result to prevent jumping */}
-                <div className="h-12 flex items-center justify-center">
-                  {result !== null && (
-                    <div className="text-center">
-                      <div className="text-base text-gray-300">
-                        Result: {result.toFixed(2)}x
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-            
-            {/* Target Multiplier Control */}
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Target Multiplier: {targetMultiplier.toFixed(2)}x
-              </label>
-              <input
-                type="range"
-                min="1.01"
-                max="100"
-                step="0.01"
-                value={targetMultiplier}
-                onChange={(e) => setTargetMultiplier(Number(e.target.value))}
-                className="w-full"
-                disabled={isPlaying || autoBetRunning}
-              />
-              <div className="flex justify-between text-xs text-gray-400 mt-1">
-                <span>1.01x</span>
-                <span>100x</span>
-              </div>
-              <div className="grid grid-cols-4 gap-1 mt-2">
-                {[1.5, 2, 5, 10].map(mult => (
-                  <button
-                    key={mult}
-                    onClick={() => setTargetMultiplier(mult)}
-                    className={`px-2 py-1 text-xs rounded transition-colors ${
-                      targetMultiplier === mult 
-                        ? 'bg-green-600 text-white' 
-                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                    }`}
-                    disabled={isPlaying || autoBetRunning}
-                  >
-                    {mult}x
-                  </button>
-                ))}
-              </div>
-            </div>
-            
-            <div className="text-center">
-              <div className="text-lg text-yellow-400 font-semibold">
-                Potential Win: ${(betAmount * targetMultiplier).toFixed(2)}
-              </div>
+            <div className="text-lg text-yellow-400 font-semibold">
+              Potential Win: {formatCurrency(betAmount * targetMultiplier)}
             </div>
           </div>
+          
+          {/* Multiplier Display */}
+          <div className="relative bg-gray-800 rounded-lg p-6 mb-6 min-h-32 flex items-center justify-center">
+            {gameResult ? (
+              <div className="text-center">
+                <div className={`text-6xl font-bold mb-4 ${gameResult.won ? 'text-green-400' : 'text-red-400'}`}>
+                  {gameResult.multiplier.toFixed(2)}x
+                </div>
+                <div className={`text-2xl font-bold ${gameResult.won ? 'text-green-400' : 'text-red-400'}`}>
+                  {gameResult.won ? 'WIN!' : 'LOSE!'}
+                </div>
+                <div className="text-base text-gray-300 mt-2">
+                  {gameResult.won ? `+${formatCurrency(gameResult.profit)}` : `-${formatCurrency(betAmount)}`}
+                </div>
+              </div>
+            ) : isPlaying ? (
+              <div className="text-center">
+                <div className="text-4xl font-bold text-yellow-400 mb-4 animate-pulse">
+                  Rolling...
+                </div>
+                <div className="w-8 h-8 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin mx-auto"></div>
+              </div>
+            ) : (
+              <div className="text-center text-gray-400">
+                <div className="text-2xl font-bold mb-2">Ready to Play</div>
+                <div className="text-sm">Set your target and place your bet</div>
+              </div>
+            )}
+          </div>
+          
+          {/* Target Multiplier Slider */}
+          <div className="mb-6">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-white text-sm">Target Multiplier: {targetMultiplier.toFixed(2)}x</span>
+              <span className="text-yellow-400 text-sm">Win Chance: {(100 / targetMultiplier).toFixed(2)}%</span>
+            </div>
+            
+            <input
+              type="range"
+              min="1.01"
+              max="100"
+              step="0.01"
+              value={targetMultiplier}
+              onChange={(e) => setTargetMultiplier(Number(e.target.value))}
+              className="w-full h-3 rounded-lg appearance-none cursor-pointer bg-gray-700"
+              disabled={isPlaying || autoBetRunning}
+            />
+            
+            <div className="flex justify-between text-xs text-gray-400 mt-1">
+              <span>1.01x (99% chance)</span>
+              <span>100x (1% chance)</span>
+            </div>
+          </div>
+        </div>
+      </div>
 
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Recent Bets and other content */}
+        <div className="lg:col-span-2">
           <RecentBets bets={bets.filter(bet => bet.game === 'Limbo')} formatCurrency={formatCurrency} maxBets={5} />
         </div>
         
@@ -570,14 +500,14 @@ const Limbo = () => {
             
             <div className="grid grid-cols-2 gap-2 mb-4">
               <button
-                onClick={() => setBetAmount(prev => prev / 2)}
+                onClick={() => setBetAmount(prev => roundBetAmount(prev / 2))}
                 className="px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
                 disabled={isPlaying || autoBetRunning}
               >
                 1/2
               </button>
               <button
-                onClick={() => setBetAmount(prev => prev * 2)}
+                onClick={() => setBetAmount(prev => roundBetAmount(prev * 2))}
                 className="px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
                 disabled={isPlaying || autoBetRunning}
               >
@@ -587,13 +517,13 @@ const Limbo = () => {
             
             {user && (
               <div className="mb-4 text-sm text-gray-400">
-                Balance: ${user.balance.toFixed(2)}
+                Balance: {formatCurrency(user.balance)}
               </div>
             )}
             
             <div className="space-y-2">
               <button
-                onClick={handlePlay}
+                onClick={playLimbo}
                 disabled={isPlaying || !user || betAmount > user.balance || autoBetRunning}
                 className="w-full bg-green-500 hover:bg-green-600 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-semibold py-3 px-4 rounded-lg transition-colors flex items-center justify-center"
               >
@@ -605,7 +535,7 @@ const Limbo = () => {
                 ) : (
                   <>
                     <Play className="w-5 h-5 mr-2" />
-                    Play
+                    Play Limbo
                   </>
                 )}
               </button>
@@ -638,17 +568,20 @@ const Limbo = () => {
                 </div>
               )}
             </div>
-            
-            {/* Live Stats Toggle */}
-            <button
-              onClick={() => setShowLiveStats(true)}
-              className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors flex items-center justify-center mt-2"
-            >
-              <BarChart3 className="w-5 h-5 mr-2" />
-              Show Live Stats
-            </button>
           </div>
           
+          {/* Live Stats Toggle */}
+          <button
+            onClick={() => setShowLiveStats(!showLiveStats)}
+            className={`w-full font-semibold py-2 px-4 rounded-lg transition-colors flex items-center justify-center ${
+              showLiveStats 
+                ? 'bg-red-600 hover:bg-red-700 text-white' 
+                : 'bg-purple-600 hover:bg-purple-700 text-white'
+            }`}
+          >
+            <BarChart3 className="w-5 h-5 mr-2" />
+            {showLiveStats ? 'Hide Live Stats' : 'Show Live Stats'}
+          </button>
 
           <SettingsManager
             currentGame="limbo"
@@ -663,6 +596,7 @@ const Limbo = () => {
               maxAutoBets,
               infiniteBet,
               instantBet,
+              betSpeed,
               stopOnProfit,
               stopProfitAmount,
               stopOnLoss,
@@ -673,9 +607,37 @@ const Limbo = () => {
             onSaveSettings={saveSettings}
           />
 
+          {/* Seed Control */}
+          <div className="bg-gray-800 rounded-lg p-6">
+            <h3 className="text-lg font-bold text-white mb-4">Random Seed</h3>
+            <div className="space-y-2">
+              <div className="flex space-x-2">
+                <input
+                  type="text"
+                  value={newSeed}
+                  onChange={(e) => setNewSeed(e.target.value)}
+                  className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-400 text-sm"
+                  placeholder="Enter custom seed"
+                />
+                <button
+                  onClick={handleSeedUpdate}
+                  className="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-3 rounded-lg transition-colors text-sm"
+                >
+                  Set
+                </button>
+                <button
+                  onClick={generateNewSeed}
+                  className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-3 rounded-lg transition-colors"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+          
           {/* Advanced Auto-bet Settings */}
           <div className="bg-gray-800 rounded-lg p-6">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-bold text-white flex items-center">
                 <Settings className="w-5 h-5 mr-2" />
                 Auto-Bet Settings
@@ -717,6 +679,26 @@ const Limbo = () => {
                   max="10000"
                   disabled={infiniteBet || autoBetRunning}
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Bet Speed (ms): {betSpeed === 1 ? 'Instant' : betSpeed}
+                </label>
+                <input
+                  type="range"
+                  min="1"
+                  max="5000"
+                  step="1"
+                  value={betSpeed}
+                  onChange={(e) => setBetSpeed(Number(e.target.value))}
+                  className="w-full"
+                  disabled={autoBetRunning}
+                />
+                <div className="flex justify-between text-xs text-gray-400 mt-1">
+                  <span>Instant</span>
+                  <span>5s</span>
+                </div>
               </div>
               
               <div className="mb-4">
@@ -812,6 +794,29 @@ const Limbo = () => {
                     </div>
                   )}
                   
+                  {/* Martingale Strategy Settings */}
+                  {strategy === 'martingale' && (
+                    <div className="bg-gray-700 rounded-lg p-3">
+                      <h5 className="text-white font-medium mb-3">Martingale Settings</h5>
+                      <div>
+                        <label className="block text-sm text-gray-300 mb-1">Loss Multiplier</label>
+                        <input
+                          type="number"
+                          value={martingaleMultiplier}
+                          onChange={(e) => setMartingaleMultiplier(Number(e.target.value))}
+                          className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-lg text-white"
+                          min="1.1"
+                          max="10"
+                          step="0.1"
+                          disabled={autoBetRunning}
+                        />
+                        <p className="text-xs text-gray-400 mt-1">
+                          Multiply bet by this amount after each loss
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  
                   {/* Stop Conditions */}
                   <div className="bg-gray-700 rounded-lg p-3">
                     <h5 className="text-white font-medium mb-3">Stop Conditions</h5>
@@ -866,7 +871,7 @@ const Limbo = () => {
         sessionStats={sessionStats}
         sessionProfit={sessionProfit}
         profitHistory={profitHistory}
-        onReset={resetProfitGraph}
+        onReset={resetStats}
         formatCurrency={formatCurrency}
         startTime={sessionStartTime}
         betsPerSecond={betsPerSecond}

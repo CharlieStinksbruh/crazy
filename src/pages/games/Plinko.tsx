@@ -135,7 +135,6 @@ const Plinko = () => {
         });
         
         updateBalance(profit);
-        updateStats(betAmount, winAmount);
         
         addBet({
           game: 'Plinko',

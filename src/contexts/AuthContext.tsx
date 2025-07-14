@@ -278,18 +278,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const levelRewards = getLevelRewards(user.level);
     const bonusAmount = levelRewards.dailyBonus;
     
-    updateBalance(bonusAmount);
-    
-    const updatedUser = { ...user, lastDailyBonus: today };
+    // Update balance using the same pattern as games
+    const newBalance = user.balance + bonusAmount;
+    const updatedUser = { ...user, balance: newBalance, lastDailyBonus: today };
     setUser(updatedUser);
 
     // Update in localStorage
     const users = JSON.parse(localStorage.getItem('charlies-odds-users') || '[]');
     const userIndex = users.findIndex((u: any) => u.id === user.id);
     if (userIndex !== -1) {
-      users[userIndex] = { ...users[userIndex], lastDailyBonus: today };
+      users[userIndex] = { ...users[userIndex], balance: newBalance, lastDailyBonus: today };
       localStorage.setItem('charlies-odds-users', JSON.stringify(users));
     }
+    
 
     return bonusAmount;
   };
