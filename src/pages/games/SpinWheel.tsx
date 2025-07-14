@@ -117,12 +117,6 @@ const SpinWheel = () => {
       const winAmount = betAmount * selectedSegment.multiplier;
       const profit = winAmount - betAmount;
       
-      // Always update balance - deduct bet amount and add winnings if any
-      updateBalance(-betAmount);
-      if (selectedSegment.multiplier > 0) {
-        updateBalance(winAmount);
-      }
-      
       // Update profit tracking
       const newProfit = sessionProfit + profit;
       setSessionProfit(newProfit);
@@ -149,6 +143,7 @@ const SpinWheel = () => {
         return newStats;
       });
       
+      updateBalance(profit);
       updateStats(betAmount, winAmount);
       
       addBet({

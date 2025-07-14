@@ -108,12 +108,6 @@ const Plinko = () => {
         const winAmount = betAmount * finalMultiplier;
         const profit = winAmount - betAmount;
         
-        // Always update balance - deduct bet amount and add winnings if any
-        updateBalance(-betAmount);
-        if (finalMultiplier > 0) {
-          updateBalance(winAmount);
-        }
-        
         // Update profit tracking
         const newProfit = sessionProfit + profit;
         setSessionProfit(newProfit);
@@ -140,6 +134,7 @@ const Plinko = () => {
           return newStats;
         });
         
+        updateBalance(profit);
         updateStats(betAmount, winAmount);
         
         addBet({

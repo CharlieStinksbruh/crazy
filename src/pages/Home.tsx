@@ -332,26 +332,26 @@ const Home = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* User Stats */}
         {user && (
-          <div className="bg-gradient-to-r from-gray-800 to-gray-700 rounded-2xl p-8 mb-24 border border-gray-600 shadow-2xl">
+          <div className="bg-gradient-to-r from-gray-800 to-gray-700 rounded-2xl p-8 mb-16 border border-gray-600 shadow-2xl">
             <div className="text-center mb-6">
               <h2 className="text-3xl font-bold text-white mb-2">Welcome back, {user.username}! 🎉</h2>
               <p className="text-gray-300">Your gaming journey continues...</p>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
               <div className="text-center bg-gray-900/50 rounded-xl p-4">
-                <div className="text-3xl font-bold text-yellow-400">{stats.totalBets || 0}</div>
+                <div className="text-3xl font-bold text-yellow-400">{stats.totalBets}</div>
                 <div className="text-gray-400 text-sm">Total Bets</div>
               </div>
               <div className="text-center bg-gray-900/50 rounded-xl p-4">
-                <div className="text-3xl font-bold text-green-400">{stats.totalWins || 0}</div>
+                <div className="text-3xl font-bold text-green-400">{stats.totalWins}</div>
                 <div className="text-gray-400 text-sm">Wins</div>
               </div>
               <div className="text-center bg-gray-900/50 rounded-xl p-4">
-                <div className="text-3xl font-bold text-blue-400">{formatCurrency(stats.totalWagered || 0)}</div>
+                <div className="text-3xl font-bold text-blue-400">{formatCurrency(stats.totalWagered)}</div>
                 <div className="text-gray-400 text-sm">Total Wagered</div>
               </div>
               <div className="text-center bg-gray-900/50 rounded-xl p-4">
-                <div className="text-3xl font-bold text-purple-400">{stats.totalBets ? (stats.winRate || 0).toFixed(1) : '0.0'}%</div>
+                <div className="text-3xl font-bold text-purple-400">{stats.winRate.toFixed(1)}%</div>
                 <div className="text-gray-400 text-sm">Win Rate</div>
               </div>
             </div>
@@ -359,7 +359,7 @@ const Home = () => {
         )}
 
         {/* Games Showcase */}
-        <div className="mb-24">
+        <div className="mb-20">
           <div className="text-center mb-12">
             <h2 className="text-4xl font-bold text-white mb-4">
               Choose Your <span className="text-yellow-400">Adventure</span>

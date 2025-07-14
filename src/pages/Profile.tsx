@@ -33,7 +33,6 @@ const Profile = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [achievements, setAchievements] = useState<any[]>([]);
   const [dailyBonusClaimed, setDailyBonusClaimed] = useState(false);
-  const [activeCategory, setActiveCategory] = useState('all');
 
   useEffect(() => {
     if (user) {
@@ -338,12 +337,12 @@ const Profile = () => {
                 <div className="mt-3 max-w-xs">
                   <div className="flex justify-between text-sm text-gray-400 mb-1">
                     <span>Level {user.level}</span>
-                    <span>{user.experience || 0}/{nextLevelXP} XP</span>
+                    <span>{user.experience}/{nextLevelXP} XP</span>
                   </div>
                   <div className="w-full bg-gray-700 rounded-full h-2">
                     <div 
                       className="bg-gradient-to-r from-purple-400 to-pink-500 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${isNaN(progressPercentage) ? 0 : progressPercentage}%` }}
+                      style={{ width: `${progressPercentage}%` }}
                     />
                   </div>
                 </div>
@@ -720,48 +719,46 @@ const Profile = () => {
                 
                 {/* Achievement Categories */}
                 <div className="flex flex-wrap gap-2 mb-6">
-                  <button
-                    className={`${activeCategory === 'all' ? 'bg-blue-600' : 'bg-gray-700 hover:bg-gray-600'} text-white px-3 py-1 rounded-full text-sm`}
-                    onClick={() => setActiveCategory('all')}
+                  <button 
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-full text-sm"
+                    onClick={() => {}}
                   >
                     All
                   </button>
-                  <button
-                    className={`${activeCategory === 'betting' ? 'bg-blue-600' : 'bg-gray-700 hover:bg-gray-600'} text-white px-3 py-1 rounded-full text-sm`}
-                    onClick={() => setActiveCategory('betting')}
+                  <button 
+                    className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded-full text-sm"
+                    onClick={() => {}}
                   >
                     Betting
                   </button>
-                  <button
-                    className={`${activeCategory === 'winning' ? 'bg-blue-600' : 'bg-gray-700 hover:bg-gray-600'} text-white px-3 py-1 rounded-full text-sm`}
-                    onClick={() => setActiveCategory('winning')}
+                  <button 
+                    className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded-full text-sm"
+                    onClick={() => {}}
                   >
                     Winning
                   </button>
-                  <button
-                    className={`${activeCategory === 'profit' ? 'bg-blue-600' : 'bg-gray-700 hover:bg-gray-600'} text-white px-3 py-1 rounded-full text-sm`}
-                    onClick={() => setActiveCategory('profit')}
+                  <button 
+                    className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded-full text-sm"
+                    onClick={() => {}}
                   >
                     Profit
                   </button>
-                  <button
-                    className={`${activeCategory === 'level' ? 'bg-blue-600' : 'bg-gray-700 hover:bg-gray-600'} text-white px-3 py-1 rounded-full text-sm`}
-                    onClick={() => setActiveCategory('level')}
+                  <button 
+                    className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded-full text-sm"
+                    onClick={() => {}}
                   >
                     Level
                   </button>
-                  <button
-                    className={`${activeCategory === 'special' ? 'bg-blue-600' : 'bg-gray-700 hover:bg-gray-600'} text-white px-3 py-1 rounded-full text-sm`}
-                    onClick={() => setActiveCategory('special')}
+                  <button 
+                    className="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded-full text-sm"
+                    onClick={() => {}}
                   >
                     Special
                   </button>
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {achievements
-                    .filter(achievement => activeCategory === 'all' || achievement.category === activeCategory)
-                    .map((achievement) => (
+                  {achievements.map((achievement) => (
                     <div
                       key={achievement.id}
                       className={`bg-gray-900 rounded-xl p-6 border-2 transition-all ${

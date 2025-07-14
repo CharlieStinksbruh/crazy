@@ -35,7 +35,7 @@ const Login = () => {
         console.log('Login successful, navigating to home');
         navigate('/');
       } else {
-        setError('Invalid username/email or password. Try: admin/admin or demo/demo');
+        setError('Invalid username/email or password');
       }
     } catch (err) {
       console.error('Login error:', err);
