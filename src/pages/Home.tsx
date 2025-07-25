@@ -374,29 +374,29 @@ const Home = () => {
               <Link
                 key={game.path}
                 to={game.path}
-                className="group relative bg-gray-800 rounded-2xl p-8 border border-gray-700 hover:border-gray-600 transition-all duration-500 hover:transform hover:scale-105 overflow-hidden"
+                className="group relative bg-gray-800 rounded-2xl p-4 sm:p-6 lg:p-8 border border-gray-700 hover:border-gray-600 transition-all duration-500 hover:transform hover:scale-105 overflow-hidden min-h-[280px] flex flex-col"
               >
                 {/* Background Gradient */}
                 <div className={`absolute inset-0 bg-gradient-to-br ${game.color} opacity-0 group-hover:opacity-10 transition-opacity duration-500`}></div>
                 
                 {/* Content */}
-                <div className="relative z-10">
-                  <div className="flex items-center justify-between mb-6">
+                <div className="relative z-10 flex flex-col h-full">
+                  <div className="flex items-center justify-between mb-4 sm:mb-6">
                     <div className={`p-4 rounded-xl bg-gradient-to-br ${game.color} shadow-lg`}>
                       {game.icon}
                     </div>
                     <div className="text-right">
-                      <div className="text-yellow-400 text-sm font-semibold">{game.popularity}</div>
+                      <div className="text-yellow-400 text-xs sm:text-sm font-semibold">{game.popularity}</div>
                       <div className="text-gray-400 text-xs">{game.players} playing</div>
                     </div>
                   </div>
                   
-                  <h3 className="text-2xl font-bold text-white mb-3 group-hover:text-yellow-400 transition-colors">
+                  <h3 className="text-xl sm:text-2xl font-bold text-white mb-3 group-hover:text-yellow-400 transition-colors">
                     {game.name}
                   </h3>
-                  <p className="text-gray-300 mb-6 leading-relaxed">{game.description}</p>
+                  <p className="text-gray-300 mb-4 sm:mb-6 leading-relaxed text-sm sm:text-base flex-grow">{game.description}</p>
                   
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between mt-auto">
                     <span className="text-sm text-gray-400 flex items-center">
                       <Play className="w-4 h-4 mr-1" />
                       Play Now
@@ -425,16 +425,16 @@ const Home = () => {
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {features.map((feature, index) => (
-              <div key={index} className="group bg-gray-800 rounded-2xl p-8 border border-gray-700 hover:border-gray-600 transition-all duration-300 hover:transform hover:scale-105">
+              <div key={index} className="group bg-gray-800 rounded-2xl p-4 sm:p-6 lg:p-8 border border-gray-700 hover:border-gray-600 transition-all duration-300 hover:transform hover:scale-105 min-h-[240px] flex flex-col">
                 <div className={`w-16 h-16 bg-gradient-to-br ${feature.color} rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300`}>
                   <div className="text-white">
                     {feature.icon}
                   </div>
                 </div>
-                <h3 className="text-xl font-bold text-white mb-4 group-hover:text-yellow-400 transition-colors">
+                <h3 className="text-lg sm:text-xl font-bold text-white mb-4 group-hover:text-yellow-400 transition-colors">
                   {feature.title}
                 </h3>
-                <p className="text-gray-300 leading-relaxed">{feature.description}</p>
+                <p className="text-gray-300 leading-relaxed text-sm sm:text-base flex-grow">{feature.description}</p>
               </div>
             ))}
           </div>
@@ -449,15 +449,15 @@ const Home = () => {
             <p className="text-xl text-gray-300">Real feedback from our amazing community</p>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
             {testimonials.map((testimonial, index) => (
-              <div key={index} className="bg-gray-800 rounded-2xl p-8 border border-gray-700 hover:border-gray-600 transition-all duration-300">
+              <div key={index} className="bg-gray-800 rounded-2xl p-4 sm:p-6 lg:p-8 border border-gray-700 hover:border-gray-600 transition-all duration-300 min-h-[200px] flex flex-col">
                 <div className="flex items-center mb-6">
                   <div className="w-12 h-12 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center mr-4">
                     <span className="text-gray-900 font-bold">{testimonial.avatar}</span>
                   </div>
                   <div>
-                    <div className="text-white font-semibold">{testimonial.name}</div>
+                    <div className="text-white font-semibold text-sm sm:text-base">{testimonial.name}</div>
                     <div className="text-gray-400 text-sm">{testimonial.role}</div>
                   </div>
                   <div className="ml-auto flex text-yellow-400">
@@ -466,10 +466,10 @@ const Home = () => {
                     ))}
                   </div>
                 </div>
-                <blockquote className="text-gray-300 italic mb-4 leading-relaxed">
+                <blockquote className="text-gray-300 italic mb-4 leading-relaxed text-sm sm:text-base flex-grow">
                   "{testimonial.text}"
                 </blockquote>
-                <div className="text-yellow-400 font-semibold text-sm">
+                <div className="text-yellow-400 font-semibold text-xs sm:text-sm mt-auto">
                   💡 "{testimonial.highlight}"
                 </div>
               </div>

@@ -16,6 +16,7 @@ interface Task {
 
 const EarnBalance = () => {
   const { user, updateBalance, formatCurrency } = useAuth();
+  const { bets, stats } = useGame();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [spinResult, setSpinResult] = useState<number | null>(null);
   const [isSpinning, setIsSpinning] = useState(false);
@@ -302,6 +303,150 @@ const EarnBalance = () => {
   const completeTask = (taskId: string) => {
     if (!user) return;
 
+    // Check if task can actually be completed
+    const task = tasks.find(t => t.id === taskId);
+    if (!task || !canCompleteTask(task)) return;
+    
+    // Validate task completion based on actual user data
+    let canComplete = false;
+    
+    switch (taskId) {
+      case 'daily-login':
+        // Check if user logged in today (always true if they're here)
+        canComplete = true;
+        break;
+        
+      case 'daily-games':
+        // Check if user played 10 games today
+        const today = new Date().toDateString();
+        const todaysBets = bets.filter(bet => 
+          new Date(bet.timestamp).toDateString() === today
+        );
+        canComplete = todaysBets.length >= 10;
+        break;
+        
+      case 'dice-master':
+        // Check for 5 dice wins in a row
+        const diceBets = bets.filter(bet => bet.game === 'Dice').slice(0, 10);
+        let consecutiveWins = 0;
+        for (const bet of diceBets) {
+          if (bet.winAmount > bet.betAmount) {
+            consecutiveWins++;
+            if (consecutiveWins >= 5) {
+              canComplete = true;
+              break;
+            }
+          } else {
+            consecutiveWins = 0;
+          }
+        }
+        break;
+        
+      case 'crash-survivor':
+        // Check for 10x cashout in crash
+        const crashBets = bets.filter(bet => bet.game === 'Crash');
+        canComplete = crashBets.some(bet => bet.multiplier >= 10);
+        break;
+        
+      case 'blackjack-pro':
+        // Check for 3 blackjacks in one session (simplified)
+        const blackjackBets = bets.filter(bet => bet.game === 'Blackjack');
+        canComplete = blackjackBets.filter(bet => bet.multiplier >= 2.5).length >= 3;
+        break;
+        
+      case 'plinko-lucky':
+        // Check for 1000x in Plinko
+        const plinkoBets = bets.filter(bet => bet.game === 'Plinko');
+        canComplete = plinkoBets.some(bet => bet.multiplier >= 1000);
+        break;
+        
+      case 'limbo-high':
+        // Check for 50x win in Limbo
+        const limboBets = bets.filter(bet => bet.game === 'Limbo');
+        canComplete = limboBets.some(bet => bet.multiplier >= 50);
+        break;
+        
+      case 'spin-winner':
+        // Check for 10 wins on spin wheel
+        const spinBets = bets.filter(bet => bet.game === 'Spin Wheel');
+        const spinWins = spinBets.filter(bet => bet.winAmount > bet.betAmount);
+        canComplete = spinWins.length >= 10;
+        break;
+        
+      case 'auto-bet-master':
+        // This would require tracking auto-bet sessions - for now, disable
+        canComplete = false;
+        break;
+        
+      case 'profile-complete':
+        // Check if user has filled profile (simplified - just check if they have username and email)
+        canComplete = user.username && user.email;
+        break;
+        
+      case 'suggestion-submit':
+        // Check if user has submitted a suggestion
+        const suggestions = JSON.parse(localStorage.getItem('charlies-odds-suggestions') || '[]');
+        canComplete = suggestions.some((s: any) => s.author === user.username);
+        break;
+        
+      case 'strategy-test':
+        // This would require tracking strategy usage - for now, disable
+        canComplete = false;
+        break;
+        
+      case 'first-week':
+        // Check if user has been active for 7 days (simplified)
+        const accountAge = Date.now() - new Date(user.createdAt).getTime();
+        const daysSinceCreation = accountAge / (1000 * 60 * 60 * 24);
+        canComplete = daysSinceCreation >= 7 && stats.totalBets >= 50;
+        break;
+        
+      case 'big-winner':
+        // Check for $500 win in single session (simplified - check biggest win)
+        canComplete = stats.biggestWin >= 500;
+        break;
+        
+      case 'analytics-viewer':
+        // This would require tracking page views - for now, allow if they have some bets
+        canComplete = stats.totalBets >= 5;
+        break;
+        
+      case 'settings-saver':
+        // Check if user has saved settings
+        const savedSettings = JSON.parse(localStorage.getItem('charlies-odds-saved-settings') || '[]');
+        const userSettings = savedSettings.filter((s: any) => s.name && s.settings);
+        canComplete = userSettings.length >= 3;
+        break;
+        
+      case 'balance-manager':
+        // Check if user has positive balance (simplified)
+        canComplete = user.balance > 1000; // More than starting balance
+        break;
+        
+      case 'explorer':
+        // Check if user has played multiple games
+        const uniqueGames = new Set(bets.map(bet => bet.game));
+        canComplete = uniqueGames.size >= 4; // Played at least 4 different games
+        break;
+        
+      case 'community-helper':
+        // Check if user has voted on suggestions
+        const allSuggestions = JSON.parse(localStorage.getItem('charlies-odds-suggestions') || '[]');
+        const userVotes = allSuggestions.filter((s: any) => 
+          s.userVotes && s.userVotes[user.id]
+        );
+        canComplete = userVotes.length >= 5; // Reduced from 10 to 5
+        break;
+        
+      default:
+        canComplete = false;
+    }
+    
+    if (!canComplete) {
+      // Show message that task requirements aren't met
+      alert(`You haven't completed the requirements for "${task.title}" yet. Keep playing to unlock this achievement!`);
+      return;
+    }
     const updatedTasks = tasks.map(task => {
       if (task.id === taskId && !task.completed) {
         updateBalance(task.reward);
@@ -319,14 +464,17 @@ const EarnBalance = () => {
   };
 
   const canCompleteTask = (task: Task) => {
-    if (task.completed && task.cooldown) {
-      if (!task.lastCompleted) return false;
-      const now = Date.now();
-      const timeSinceCompletion = now - task.lastCompleted;
-      const cooldownTime = task.cooldown * 60 * 60 * 1000;
-      return timeSinceCompletion >= cooldownTime;
+    if (task.completed) {
+      if (task.cooldown) {
+        if (!task.lastCompleted) return false;
+        const now = Date.now();
+        const timeSinceCompletion = now - task.lastCompleted;
+        const cooldownTime = task.cooldown * 60 * 60 * 1000;
+        return timeSinceCompletion >= cooldownTime;
+      }
+      return false; // Non-cooldown tasks can't be repeated
     }
-    return !task.completed;
+    return true; // Task not completed yet
   };
 
   const getCategoryColor = (category: string) => {
@@ -510,14 +658,14 @@ const EarnBalance = () => {
                     ) : canCompleteTask(task) ? (
                       <button
                         onClick={() => completeTask(task.id)}
-                        disabled={!user}
-                        className="bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors text-sm"
+                        disabled={!user || task.id === 'auto-bet-master' || task.id === 'strategy-test'}
+                        className="bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-semibold py-2 px-4 rounded-lg transition-colors text-sm"
                       >
-                        Complete Task
+                        {task.id === 'auto-bet-master' || task.id === 'strategy-test' ? 'Coming Soon' : 'Complete Task'}
                       </button>
                     ) : (
                       <div className="text-gray-400 text-sm">
-                        On cooldown
+                        {task.cooldown ? 'On cooldown' : 'Requirements not met'}
                       </div>
                     )}
                   </div>
