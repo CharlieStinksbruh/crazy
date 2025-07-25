@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Coins, Gift, Clock, Target, Users, Star, Trophy, Zap, CheckCircle, RotateCcw, Play, Calendar, Award, Heart, Gamepad2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useGame } from '../contexts/GameContext';
 
 interface Task {
   id: string;
@@ -308,12 +309,45 @@ const EarnBalance = () => {
     if (!task || !canCompleteTask(task)) return;
     
     // Validate task completion based on actual user data
+    const completionData = getTaskCompletionData(task);
+    
+    if (!completionData.canComplete) {
+      // Show message that task requirements aren't met
+      alert(`You haven't completed the requirements for "${task.title}" yet. ${completionData.progressText}`);
+      return;
+    }
+    
+    const updatedTasks = tasks.map(t => {
+      if (t.id === taskId && !t.completed) {
+        updateBalance(t.reward);
+        return {
+          ...t,
+          completed: true,
+          lastCompleted: Date.now()
+        };
+      }
+      return t;
+    });
+    
+    setTasks(updatedTasks);
+    localStorage.setItem('charlies-odds-tasks', JSON.stringify(updatedTasks));
+  };
+
+  const getTaskCompletionData = (task: Task) => {
+    if (!user) return { canComplete: false, progress: 0, total: 1, progressText: 'Login required' };
+    
     let canComplete = false;
+    let progress = 0;
+    let total = 1;
+    let progressText = '';
     
     switch (taskId) {
       case 'daily-login':
         // Check if user logged in today (always true if they're here)
         canComplete = true;
+        progress = 1;
+        total = 1;
+        progressText = 'Completed by logging in today';
         break;
         
       case 'daily-games':
@@ -322,111 +356,167 @@ const EarnBalance = () => {
         const todaysBets = bets.filter(bet => 
           new Date(bet.timestamp).toDateString() === today
         );
-        canComplete = todaysBets.length >= 10;
+        progress = todaysBets.length;
+        total = 10;
+        canComplete = progress >= total;
+        progressText = `Play ${total - progress} more games today`;
         break;
         
       case 'dice-master':
         // Check for 5 dice wins in a row
         const diceBets = bets.filter(bet => bet.game === 'Dice').slice(0, 10);
         let consecutiveWins = 0;
+        let maxConsecutiveWins = 0;
         for (const bet of diceBets) {
           if (bet.winAmount > bet.betAmount) {
             consecutiveWins++;
-            if (consecutiveWins >= 5) {
-              canComplete = true;
-              break;
-            }
+            maxConsecutiveWins = Math.max(maxConsecutiveWins, consecutiveWins);
           } else {
             consecutiveWins = 0;
           }
         }
+        progress = maxConsecutiveWins;
+        total = 5;
+        canComplete = progress >= total;
+        progressText = `Get ${total - progress} more consecutive dice wins`;
         break;
         
       case 'crash-survivor':
         // Check for 10x cashout in crash
         const crashBets = bets.filter(bet => bet.game === 'Crash');
-        canComplete = crashBets.some(bet => bet.multiplier >= 10);
+        const highMultiplierCrash = crashBets.filter(bet => bet.multiplier >= 10);
+        progress = highMultiplierCrash.length > 0 ? 1 : 0;
+        total = 1;
+        canComplete = progress >= total;
+        progressText = 'Cash out at 10x multiplier in Crash game';
         break;
         
       case 'blackjack-pro':
         // Check for 3 blackjacks in one session (simplified)
         const blackjackBets = bets.filter(bet => bet.game === 'Blackjack');
-        canComplete = blackjackBets.filter(bet => bet.multiplier >= 2.5).length >= 3;
+        const blackjacks = blackjackBets.filter(bet => bet.multiplier >= 2.5);
+        progress = blackjacks.length;
+        total = 3;
+        canComplete = progress >= total;
+        progressText = `Get ${total - progress} more blackjacks`;
         break;
         
       case 'plinko-lucky':
         // Check for 1000x in Plinko
         const plinkoBets = bets.filter(bet => bet.game === 'Plinko');
-        canComplete = plinkoBets.some(bet => bet.multiplier >= 1000);
+        const plinko1000x = plinkoBets.filter(bet => bet.multiplier >= 1000);
+        progress = plinko1000x.length > 0 ? 1 : 0;
+        total = 1;
+        canComplete = progress >= total;
+        progressText = 'Hit a 1000x multiplier in Plinko';
         break;
         
       case 'limbo-high':
         // Check for 50x win in Limbo
         const limboBets = bets.filter(bet => bet.game === 'Limbo');
-        canComplete = limboBets.some(bet => bet.multiplier >= 50);
+        const limbo50x = limboBets.filter(bet => bet.multiplier >= 50);
+        progress = limbo50x.length > 0 ? 1 : 0;
+        total = 1;
+        canComplete = progress >= total;
+        progressText = 'Win with a 50x target multiplier in Limbo';
         break;
         
       case 'spin-winner':
         // Check for 10 wins on spin wheel
         const spinBets = bets.filter(bet => bet.game === 'Spin Wheel');
         const spinWins = spinBets.filter(bet => bet.winAmount > bet.betAmount);
-        canComplete = spinWins.length >= 10;
+        progress = spinWins.length;
+        total = 10;
+        canComplete = progress >= total;
+        progressText = `Win ${total - progress} more spins on the Spin Wheel`;
         break;
         
       case 'auto-bet-master':
         // This would require tracking auto-bet sessions - for now, disable
+        progress = 0;
+        total = 100;
         canComplete = false;
+        progressText = 'Feature coming soon';
         break;
         
       case 'profile-complete':
         // Check if user has filled profile (simplified - just check if they have username and email)
-        canComplete = user.username && user.email;
+        const profileFields = [user.username, user.email].filter(Boolean);
+        progress = profileFields.length;
+        total = 2;
+        canComplete = progress >= total;
+        progressText = 'Complete your profile information';
         break;
         
       case 'suggestion-submit':
         // Check if user has submitted a suggestion
         const suggestions = JSON.parse(localStorage.getItem('charlies-odds-suggestions') || '[]');
-        canComplete = suggestions.some((s: any) => s.author === user.username);
+        const userSuggestions = suggestions.filter((s: any) => s.author === user.username);
+        progress = userSuggestions.length > 0 ? 1 : 0;
+        total = 1;
+        canComplete = progress >= total;
+        progressText = 'Submit a suggestion on the Suggestions page';
         break;
         
       case 'strategy-test':
         // This would require tracking strategy usage - for now, disable
+        progress = 0;
+        total = 3;
         canComplete = false;
+        progressText = 'Feature coming soon';
         break;
         
       case 'first-week':
         // Check if user has been active for 7 days (simplified)
         const accountAge = Date.now() - new Date(user.createdAt).getTime();
         const daysSinceCreation = accountAge / (1000 * 60 * 60 * 24);
-        canComplete = daysSinceCreation >= 7 && stats.totalBets >= 50;
+        progress = Math.min(Math.floor(daysSinceCreation), 7);
+        total = 7;
+        canComplete = progress >= total && stats.totalBets >= 50;
+        progressText = `${total - progress} more days of activity needed`;
         break;
         
       case 'big-winner':
         // Check for $500 win in single session (simplified - check biggest win)
-        canComplete = stats.biggestWin >= 500;
+        progress = Math.min(stats.biggestWin, 500);
+        total = 500;
+        canComplete = progress >= total;
+        progressText = `Win $${total - progress} more in a single bet`;
         break;
         
       case 'analytics-viewer':
         // This would require tracking page views - for now, allow if they have some bets
-        canComplete = stats.totalBets >= 5;
+        progress = Math.min(stats.totalBets, 5);
+        total = 5;
+        canComplete = progress >= total;
+        progressText = `Place ${total - progress} more bets to unlock`;
         break;
         
       case 'settings-saver':
         // Check if user has saved settings
         const savedSettings = JSON.parse(localStorage.getItem('charlies-odds-saved-settings') || '[]');
         const userSettings = savedSettings.filter((s: any) => s.name && s.settings);
-        canComplete = userSettings.length >= 3;
+        progress = userSettings.length;
+        total = 3;
+        canComplete = progress >= total;
+        progressText = `Save ${total - progress} more game configurations`;
         break;
         
       case 'balance-manager':
         // Check if user has positive balance (simplified)
-        canComplete = user.balance > 1000; // More than starting balance
+        progress = user.balance > 1000 ? 1 : 0;
+        total = 1;
+        canComplete = progress >= total;
+        progressText = 'Maintain balance above $1,000';
         break;
         
       case 'explorer':
         // Check if user has played multiple games
         const uniqueGames = new Set(bets.map(bet => bet.game));
-        canComplete = uniqueGames.size >= 4; // Played at least 4 different games
+        progress = uniqueGames.size;
+        total = 4;
+        canComplete = progress >= total;
+        progressText = `Play ${total - progress} more different games`;
         break;
         
       case 'community-helper':
@@ -435,32 +525,20 @@ const EarnBalance = () => {
         const userVotes = allSuggestions.filter((s: any) => 
           s.userVotes && s.userVotes[user.id]
         );
-        canComplete = userVotes.length >= 5; // Reduced from 10 to 5
+        progress = userVotes.length;
+        total = 5;
+        canComplete = progress >= total;
+        progressText = `Vote on ${total - progress} more suggestions`;
         break;
         
       default:
+        progress = 0;
+        total = 1;
         canComplete = false;
+        progressText = 'Task not available';
     }
     
-    if (!canComplete) {
-      // Show message that task requirements aren't met
-      alert(`You haven't completed the requirements for "${task.title}" yet. Keep playing to unlock this achievement!`);
-      return;
-    }
-    const updatedTasks = tasks.map(task => {
-      if (task.id === taskId && !task.completed) {
-        updateBalance(task.reward);
-        return {
-          ...task,
-          completed: true,
-          lastCompleted: Date.now()
-        };
-      }
-      return task;
-    });
-    
-    setTasks(updatedTasks);
-    localStorage.setItem('charlies-odds-tasks', JSON.stringify(updatedTasks));
+    return { canComplete, progress, total, progressText };
   };
 
   const canCompleteTask = (task: Task) => {
@@ -649,24 +727,48 @@ const EarnBalance = () => {
                   <h3 className="text-lg font-bold text-white mb-2">{task.title}</h3>
                   <p className="text-gray-300 text-sm mb-4">{task.description}</p>
                   
+                  {/* Progress Bar */}
+                  {!task.completed && (() => {
+                    const completionData = getTaskCompletionData(task);
+                    return (
+                      <div className="mb-4">
+                        <div className="flex justify-between text-xs text-gray-400 mb-1">
+                          <span>Progress</span>
+                          <span>{completionData.progress}/{completionData.total}</span>
+                        </div>
+                        <div className="w-full bg-gray-700 rounded-full h-2">
+                          <div 
+                            className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-300"
+                            style={{ width: `${Math.min((completionData.progress / completionData.total) * 100, 100)}%` }}
+                          />
+                        </div>
+                        {!completionData.canComplete && (
+                          <p className="text-xs text-gray-400 mt-1">{completionData.progressText}</p>
+                        )}
+                      </div>
+                    );
+                  })()}
+                  
                   <div className="flex items-center justify-between">
                     {task.completed ? (
                       <div className="flex items-center text-green-400">
                         <CheckCircle className="w-5 h-5 mr-2" />
                         <span className="text-sm font-medium">Completed</span>
                       </div>
-                    ) : canCompleteTask(task) ? (
+                    ) : (() => {
+                      const completionData = getTaskCompletionData(task);
+                      const taskCanComplete = canCompleteTask(task);
+                      
+                      return (
                       <button
                         onClick={() => completeTask(task.id)}
-                        disabled={!user || task.id === 'auto-bet-master' || task.id === 'strategy-test'}
+                        disabled={!user || !completionData.canComplete || !taskCanComplete || task.id === 'auto-bet-master' || task.id === 'strategy-test'}
                         className="bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-semibold py-2 px-4 rounded-lg transition-colors text-sm"
                       >
                         {task.id === 'auto-bet-master' || task.id === 'strategy-test' ? 'Coming Soon' : 'Complete Task'}
                       </button>
-                    ) : (
-                      <div className="text-gray-400 text-sm">
-                        {task.cooldown ? 'On cooldown' : 'Requirements not met'}
-                      </div>
+                      );
+                    })()}
                     )}
                   </div>
                 </div>

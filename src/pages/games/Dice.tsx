@@ -384,7 +384,7 @@ const Dice = () => {
     setSeed(newRandomSeed);
   };
 
-  const multiplier = 100 / winChance;
+  const multiplier = rollType === 'under' ? 100 / winChance : 100 / (100 - winChance);
 
   useEffect(() => {
     if (isAutoMode && autoBetRunning && (autoBetCount > 0 || infiniteBet) && !isRolling) {

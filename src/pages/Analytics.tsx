@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { BarChart3, TrendingUp, TrendingDown, Target, DollarSign, Gamepad2, Clock, Trophy, Star } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useGame } from '../contexts/GameContext';
