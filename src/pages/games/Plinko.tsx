@@ -251,9 +251,9 @@ const Plinko = () => {
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Game Panel */}
-        <div className="lg:col-span-2">
+        <div>
           <div className="bg-gray-800 rounded-lg p-6 mb-6">
             <div className="flex items-center mb-6">
               <BarChart3 className="w-8 h-8 text-yellow-400 mr-3" />
@@ -497,6 +497,65 @@ const Plinko = () => {
                   />
                   <span className="text-white text-sm">Instant Bet (Skip Animation)</span>
                 </label>
+              </div>
+            </div>
+          </div>
+          
+          {/* Game Statistics */}
+          <div className="bg-gray-800 rounded-lg p-6">
+            <h3 className="text-lg font-bold text-white mb-4">Session Statistics</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-gray-900 rounded-lg p-4 text-center">
+                <div className="text-2xl font-bold text-white">{sessionStats.totalBets}</div>
+                <div className="text-sm text-gray-400">Total Drops</div>
+              </div>
+              <div className="bg-gray-900 rounded-lg p-4 text-center">
+                <div className="text-2xl font-bold text-green-400">{sessionStats.wins}</div>
+                <div className="text-sm text-gray-400">Wins</div>
+              </div>
+              <div className="bg-gray-900 rounded-lg p-4 text-center">
+                <div className="text-2xl font-bold text-red-400">{sessionStats.losses}</div>
+                <div className="text-sm text-gray-400">Losses</div>
+              </div>
+              <div className="bg-gray-900 rounded-lg p-4 text-center">
+                <div className="text-2xl font-bold text-yellow-400">
+                  {sessionStats.totalBets > 0 ? ((sessionStats.wins / sessionStats.totalBets) * 100).toFixed(1) : 0}%
+                </div>
+                <div className="text-sm text-gray-400">Win Rate</div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Session Profit */}
+          <div className="bg-gray-800 rounded-lg p-6">
+            <h3 className="text-lg font-bold text-white mb-4">Session Profit</h3>
+            <div className="text-center">
+              <div className={`text-4xl font-bold mb-2 ${sessionProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                {formatCurrency(sessionProfit)}
+              </div>
+              <div className="text-gray-400">Current Session</div>
+            </div>
+          </div>
+          
+          {/* Plinko Tips */}
+          <div className="bg-gray-800 rounded-lg p-6">
+            <h3 className="text-lg font-bold text-white mb-4">Plinko Tips</h3>
+            <div className="space-y-3 text-sm text-gray-300">
+              <div className="flex items-start">
+                <div className="w-2 h-2 bg-yellow-400 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                <span>Center slots have higher probability but lower multipliers</span>
+              </div>
+              <div className="flex items-start">
+                <div className="w-2 h-2 bg-yellow-400 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                <span>Edge slots offer massive multipliers (1000x) but are very rare</span>
+              </div>
+              <div className="flex items-start">
+                <div className="w-2 h-2 bg-yellow-400 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                <span>Ball physics are realistic - each bounce is random</span>
+              </div>
+              <div className="flex items-start">
+                <div className="w-2 h-2 bg-yellow-400 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                <span>Use smaller bets when chasing high multipliers</span>
               </div>
             </div>
           </div>

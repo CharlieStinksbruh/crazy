@@ -418,7 +418,7 @@ const Dice = () => {
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Game Panel - Now at the top */}
-      <div className="bg-gray-800 rounded-lg p-6 mb-8">
+      <div className="bg-gray-800 rounded-lg p-6 mb-8 col-span-full">
         <div className="flex items-center mb-6">
           <Dice6 className="w-8 h-8 text-blue-400 mr-3" />
           <h1 className="text-2xl font-bold text-white">Dice</h1>
@@ -577,9 +577,9 @@ const Dice = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Betting Panel */}
-        <div className="lg:col-span-1 space-y-6">
+        <div className="space-y-6">
           <div className="bg-gray-800 rounded-lg p-6">
             <h2 className="text-xl font-bold text-white mb-4">Place Your Bet</h2>
             
@@ -969,9 +969,66 @@ const Dice = () => {
           </div>
         </div>
         
-        {/* Game content area */}
-        <div className="lg:col-span-2">
-          {/* This space can be used for other game content if needed */}
+        {/* Statistics and Info Panel */}
+        <div className="space-y-6">
+          {/* Game Statistics */}
+          <div className="bg-gray-800 rounded-lg p-6">
+            <h3 className="text-lg font-bold text-white mb-4">Session Statistics</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-gray-900 rounded-lg p-4 text-center">
+                <div className="text-2xl font-bold text-white">{sessionStats.totalBets}</div>
+                <div className="text-sm text-gray-400">Total Bets</div>
+              </div>
+              <div className="bg-gray-900 rounded-lg p-4 text-center">
+                <div className="text-2xl font-bold text-green-400">{sessionStats.wins}</div>
+                <div className="text-sm text-gray-400">Wins</div>
+              </div>
+              <div className="bg-gray-900 rounded-lg p-4 text-center">
+                <div className="text-2xl font-bold text-red-400">{sessionStats.losses}</div>
+                <div className="text-sm text-gray-400">Losses</div>
+              </div>
+              <div className="bg-gray-900 rounded-lg p-4 text-center">
+                <div className="text-2xl font-bold text-yellow-400">
+                  {sessionStats.totalBets > 0 ? ((sessionStats.wins / sessionStats.totalBets) * 100).toFixed(1) : 0}%
+                </div>
+                <div className="text-sm text-gray-400">Win Rate</div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Session Profit */}
+          <div className="bg-gray-800 rounded-lg p-6">
+            <h3 className="text-lg font-bold text-white mb-4">Session Profit</h3>
+            <div className="text-center">
+              <div className={`text-4xl font-bold mb-2 ${sessionProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                {formatCurrency(sessionProfit)}
+              </div>
+              <div className="text-gray-400">Current Session</div>
+            </div>
+          </div>
+          
+          {/* Game Tips */}
+          <div className="bg-gray-800 rounded-lg p-6">
+            <h3 className="text-lg font-bold text-white mb-4">Dice Game Tips</h3>
+            <div className="space-y-3 text-sm text-gray-300">
+              <div className="flex items-start">
+                <div className="w-2 h-2 bg-yellow-400 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                <span>Higher win chances provide more consistent results but lower payouts</span>
+              </div>
+              <div className="flex items-start">
+                <div className="w-2 h-2 bg-yellow-400 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                <span>Use auto-betting to remove emotion from your decisions</span>
+              </div>
+              <div className="flex items-start">
+                <div className="w-2 h-2 bg-yellow-400 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                <span>Set stop-loss limits to protect your bankroll</span>
+              </div>
+              <div className="flex items-start">
+                <div className="w-2 h-2 bg-yellow-400 rounded-full mt-2 mr-3 flex-shrink-0"></div>
+                <span>Track your statistics to improve your strategy</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
       

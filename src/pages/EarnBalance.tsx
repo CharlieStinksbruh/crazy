@@ -341,7 +341,7 @@ const EarnBalance = () => {
     let total = 1;
     let progressText = '';
     
-    switch (taskId) {
+    switch (task.id) {
       case 'daily-login':
         // Check if user logged in today (always true if they're here)
         canComplete = true;
@@ -769,7 +769,6 @@ const EarnBalance = () => {
                       </button>
                       );
                     })()}
-                    )}
                   </div>
                 </div>
               ))}
